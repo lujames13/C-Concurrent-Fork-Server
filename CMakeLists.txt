@@ -11,9 +11,8 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # --- 1. Shared Library: libutils.so ---
 # This library will contain the logging system (log.c)
-# Will be uncommented in Story 1.2 when log.c is created
-# add_library(utils SHARED src/libutils/log.c)
-# target_include_directories(utils PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/libutils)
+add_library(utils SHARED src/libutils/log.c)
+target_include_directories(utils PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/libutils)
 
 # --- 2. Server (Good version) - server_good ---
 # Will be uncommented in Epic 2 when all robustness mechanisms are implemented
