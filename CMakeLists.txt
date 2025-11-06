@@ -24,14 +24,14 @@ target_include_directories(utils PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/libutils
 # target_link_libraries(server_good utils)
 
 # --- 3. Server (Bad version) - server_bad ---
-# Will be uncommented in Story 1.3+ when server.c is created
-# add_executable(server_bad
-#     src/server/server.c
-#     src/server/child.c
-#     src/server/signal.c
-# )
-# target_compile_definitions(server_bad PRIVATE NO_ROBUST)
-# target_link_libraries(server_bad utils)
+# Story 1.3: Enable server_bad build target
+add_executable(server_bad
+    src/server/server.c
+    src/server/child.c
+    src/server/signal.c
+)
+target_compile_definitions(server_bad PRIVATE NO_ROBUST)
+target_link_libraries(server_bad utils)
 
 # --- 4. Client ---
 # Will be uncommented in Story 1.5 when client.c is created
