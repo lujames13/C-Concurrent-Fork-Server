@@ -28,6 +28,7 @@ void handle_child(int client_fd) {
     COMPILE_TIME_LOG_DEBUG("Reading from client (fd: %d)...\n", client_fd);
     int valread = read(client_fd, buffer, BUFFER_SIZE);
 
+    // Story 2.5: I/O Error Checking
     if (valread > 0) {
         COMPILE_TIME_LOG_DEBUG("Read %d bytes from client\n", valread);
         if (strcmp(buffer, "GET_SYS_INFO\n") == 0) {
@@ -43,9 +44,21 @@ void handle_child(int client_fd) {
             exit(EXIT_FAILURE);
         }
     } else if (valread == 0) {
+        // Story 2.5: Normal EOF - client closed connection gracefully
+        COMPILE_TIME_LOG_DEBUG("Client closed connection (EOF)\n");
         log_info("Client closed connection\n");
     } else {
-        log_info("Error reading from client: %s\n", strerror(errno));
+        // Story 2.5: Read error - distinguish different error types
+        if (errno == ECONNRESET) {
+            log_info("Connection reset by peer\n");
+            COMPILE_TIME_LOG_DEBUG("read() failed with ECONNRESET\n");
+        } else if (errno == ETIMEDOUT || errno == EAGAIN) {
+            log_info("Read timeout (client idle too long)\n");
+            COMPILE_TIME_LOG_DEBUG("read() failed with timeout: %s\n", strerror(errno));
+        } else {
+            log_info("Error reading from client: %s\n", strerror(errno));
+            COMPILE_TIME_LOG_DEBUG("read() failed with errno %d\n", errno);
+        }
     }
 
     COMPILE_TIME_LOG_DEBUG("Closing client connection (fd: %d)\n", client_fd);
