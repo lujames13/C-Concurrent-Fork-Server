@@ -40,5 +40,13 @@ add_executable(client
 )
 target_link_libraries(client utils)
 
+# --- 5. Client (Release with NDEBUG) ---
+# Story 1.7: Test NDEBUG compilation
+add_executable(client_release
+    src/client/client.c
+)
+target_compile_definitions(client_release PRIVATE NDEBUG)
+target_link_libraries(client_release utils)
+
 # Note: Subdirectories for libutils, server, and client are prepared.
 # Build targets will be uncommented as source files are created in subsequent stories.
