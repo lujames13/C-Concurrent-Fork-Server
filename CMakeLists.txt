@@ -15,13 +15,13 @@ add_library(utils SHARED src/libutils/log.c)
 target_include_directories(utils PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/libutils)
 
 # --- 2. Server (Good version) - server_good ---
-# Will be uncommented in Epic 2 when all robustness mechanisms are implemented
-# add_executable(server_good
-#     src/server/server.c
-#     src/server/child.c
-#     src/server/signal.c
-# )
-# target_link_libraries(server_good utils)
+# Story 2.6: Enable server_good build target with all robustness mechanisms
+add_executable(server_good
+    src/server/server.c
+    src/server/child.c
+    src/server/signal.c
+)
+target_link_libraries(server_good utils)
 
 # --- 3. Server (Bad version) - server_bad ---
 # Story 1.3: Enable server_bad build target
