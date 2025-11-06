@@ -94,7 +94,7 @@ int main(int argc, char *argv[]) {
         if (pid == -1) {
 #ifndef NO_ROBUST
             log_info("fork() failed: %s\n", strerror(errno));
-            write(client_fd, "SERVER_BUSY\n", 14);
+            write(client_fd, "SERVER_BUSY\n", 12);
             close(client_fd);
             sleep(1);
 #else
