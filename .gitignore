@@ -55,3 +55,16 @@ dkms.conf
 *.dwo
 
 .env
+
+# Build directories (Story 1.1 requirement)
+build/
+lib/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+
+# Network capture files
+*.pcap
