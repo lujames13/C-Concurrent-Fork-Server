@@ -34,11 +34,11 @@ target_compile_definitions(server_bad PRIVATE NO_ROBUST)
 target_link_libraries(server_bad utils)
 
 # --- 4. Client ---
-# Will be uncommented in Story 1.5 when client.c is created
-# add_executable(client
-#     src/client/client.c
-# )
-# target_link_libraries(client utils)
+# Story 1.5: Client build target enabled
+add_executable(client
+    src/client/client.c
+)
+target_link_libraries(client utils)
 
 # Note: Subdirectories for libutils, server, and client are prepared.
 # Build targets will be uncommented as source files are created in subsequent stories.
