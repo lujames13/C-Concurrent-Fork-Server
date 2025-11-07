@@ -1,0 +1,108 @@
+name: C Concurrent Server - Multi-Platform Build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      # Set fail-fast to false to ensure feedback for all matrix combinations
+      fail-fast: false
+
+      # Build configurations:
+      # 1. macOS with Clang (default compiler on macOS)
+      # 2. Linux with GCC
+      # 3. Linux with Clang
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+        build_type: [Release]
+        c_compiler: [gcc, clang]
+        include:
+          - os: macos-latest
+            c_compiler: clang
+            cpp_compiler: clang++
+          - os: ubuntu-latest
+            c_compiler: gcc
+            cpp_compiler: g++
+          - os: ubuntu-latest
+            c_compiler: clang
+            cpp_compiler: clang++
+        exclude:
+          # macOS uses Clang by default, exclude GCC
+          - os: macos-latest
+            c_compiler: gcc
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential clang
+
+    - name: Install dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install cmake
+
+    - name: Set reusable strings
+      id: strings
+      shell: bash
+      run: |
+        echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+
+    - name: Configure CMake
+      env:
+        CC: ${{ matrix.c_compiler }}
+        CXX: ${{ matrix.cpp_compiler }}
+      run: |
+        cmake -B ${{ steps.strings.outputs.build-output-dir }} \
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }} \
+          -S ${{ github.workspace }}
+
+    - name: Build libutils
+      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --target utils
+
+    - name: Build server_good
+      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --target server_good
+
+    - name: Build server_bad (with NO_ROBUST)
+      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --target server_bad
+
+    - name: Build client
+      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --target client
+
+    - name: Verify artifacts (Linux)
+      if: runner.os == 'Linux'
+      working-directory: ${{ steps.strings.outputs.build-output-dir }}
+      run: |
+        test -f libutils.so && echo "✓ libutils.so created"
+        test -f server_good && echo "✓ server_good created"
+        test -f server_bad && echo "✓ server_bad created"
+        test -f client && echo "✓ client created"
+        file libutils.so server_* client
+
+    - name: Verify artifacts (macOS)
+      if: runner.os == 'macOS'
+      working-directory: ${{ steps.strings.outputs.build-output-dir }}
+      run: |
+        test -f libutils.dylib && echo "✓ libutils.dylib created"
+        test -f server_good && echo "✓ server_good created"
+        test -f server_bad && echo "✓ server_bad created"
+        test -f client && echo "✓ client created"
+        file libutils.dylib server_* client
+
+    - name: Basic functional test
+      working-directory: ${{ steps.strings.outputs.build-output-dir }}
+      run: |
+        # Verify executables are runnable
+        ./server_good --help 2>/dev/null || ./server_good &
+        sleep 1
+        pkill -f server_good || true

@@ -9,6 +9,10 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
+# Set RPATH for executables to find libutils.so at runtime
+set(CMAKE_INSTALL_RPATH "${CMAKE_BINARY_DIR}")
+set(CMAKE_BUILD_RPATH "${CMAKE_BINARY_DIR}")
+
 # --- 1. Shared Library: libutils.so ---
 # This library will contain the logging system (log.c)
 add_library(utils SHARED src/libutils/log.c)
