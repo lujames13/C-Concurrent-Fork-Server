@@ -1,28 +1,13 @@
 #!/bin/bash
 # Attack 3: SIGPIPE Attack
-#
-# Purpose:
-#   Test SIGPIPE handling by connecting and immediately disconnecting.
-#   When the server tries to write to a closed socket, it receives a
-#   SIGPIPE signal. Without proper handling (signal(SIGPIPE, SIG_IGN)),
-#   this will crash the child process.
-#
-# Expected Results:
-#   - server_bad (NO_ROBUST): Child processes may crash on SIGPIPE
-#     (depends on timing - if write happens after client disconnect)
-#   - server_good: Child processes ignore SIGPIPE and handle the
-#     EPIPE error gracefully
-#
-# Verification:
-#   Check if parent server is still running after the attack:
-#   pgrep -f 'server_(good|bad)'
-#   Server should remain stable despite rapid disconnects
 
-PORT="${1:-8080}"
+# ✅ 修改參數處理
+HOST="${1:-localhost}"   # 第一個參數是 HOST (IP)
+PORT="${2:-8080}"        # 第二個參數是 PORT
 NUM_CONNECTIONS=20
 
 echo "=== Attack 3: SIGPIPE Attack ==="
-echo "Target: localhost:$PORT"
+echo "Target: $HOST:$PORT"  # 顯示正確的目標
 echo "Connections: $NUM_CONNECTIONS (rapid disconnect)"
 echo ""
 
@@ -31,7 +16,8 @@ echo "(Sending data then immediately closing connection)"
 echo ""
 
 for i in $(seq 1 $NUM_CONNECTIONS); do
-    (echo "GET_SYS_INFO" | nc -w 0 localhost $PORT &) 2>/dev/null
+    # ✅ 使用 $HOST 變數而不是硬編碼的 localhost
+    (echo "GET_SYS_INFO" | nc -w 0 $HOST $PORT &) 2>/dev/null
     sleep 0.02
 done
 
