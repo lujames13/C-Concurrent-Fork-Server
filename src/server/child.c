@@ -12,11 +12,11 @@
 
 void handle_child(int client_fd) {
 #ifndef NO_ROBUST
-    // Ignore SIGPIPE
+    // Story 2.3: Ignore SIGPIPE to prevent child process crash
     signal(SIGPIPE, SIG_IGN);
     COMPILE_TIME_LOG_DEBUG("SIGPIPE ignored in child process\n");
 
-    // Set socket timeout
+    // Story 2.4: Set socket timeout to defend against Slowloris
     struct timeval tv;
     tv.tv_sec = 5;
     tv.tv_usec = 0;
@@ -34,14 +34,65 @@ void handle_child(int client_fd) {
         if (strcmp(buffer, "GET_SYS_INFO\n") == 0) {
             log_info("Received GET_SYS_INFO from client\n");
             COMPILE_TIME_LOG_DEBUG("Executing uptime command\n");
-            // Redirect stdout to client socket
-            dup2(client_fd, STDOUT_FILENO);
-            dup2(client_fd, STDERR_FILENO);
-            // Execute command
-            execlp("uptime", "uptime", (char *)NULL);
-            // execlp only returns if there is an error
-            perror("execlp");
-            exit(EXIT_FAILURE);
+            
+            // Use popen() to execute command and read output
+            FILE *fp = popen("uptime", "r");
+            if (fp == NULL) {
+                log_info("popen() failed: %s\n", strerror(errno));
+                COMPILE_TIME_LOG_DEBUG("Failed to execute uptime command\n");
+                close(client_fd);
+                exit(EXIT_FAILURE);
+            }
+
+            // Read command output
+            char output[BUFFER_SIZE];
+            size_t bytes_read = fread(output, 1, sizeof(output) - 1, fp);
+            int pclose_status = pclose(fp);
+            
+            if (pclose_status != 0) {
+                COMPILE_TIME_LOG_DEBUG("pclose() returned non-zero status: %d\n", pclose_status);
+            }
+
+            if (bytes_read > 0) {
+                output[bytes_read] = '\0';
+                COMPILE_TIME_LOG_DEBUG("Command output (%zu bytes): %s", bytes_read, output);
+                
+                // Write response to client socket
+                // This is where SIGPIPE can be triggered if client disconnected
+                ssize_t bytes_written = write(client_fd, output, bytes_read);
+                
+                if (bytes_written < 0) {
+                    // Story 2.5: Handle write errors
+                    if (errno == EPIPE) {
+                        // This happens when SIGPIPE is ignored (server_good)
+                        log_info("write() error: Broken pipe (EPIPE)\n");
+                        COMPILE_TIME_LOG_DEBUG("Client disconnected before response sent\n");
+                    } else if (errno == ECONNRESET) {
+                        log_info("write() error: Connection reset by peer\n");
+                        COMPILE_TIME_LOG_DEBUG("write() failed with ECONNRESET\n");
+                    } else {
+                        log_info("write() error: %s\n", strerror(errno));
+                        COMPILE_TIME_LOG_DEBUG("write() failed with errno %d\n", errno);
+                    }
+                } else if (bytes_written < (ssize_t)bytes_read) {
+                    // Partial write - client may have disconnected mid-transfer
+                    COMPILE_TIME_LOG_DEBUG("Partial write: %zd of %zu bytes\n", bytes_written, bytes_read);
+                    log_info("Partial write to client (possible disconnect)\n");
+                } else {
+                    // Success
+                    COMPILE_TIME_LOG_DEBUG("Successfully wrote %zd bytes to client\n", bytes_written);
+                    log_info("Response sent successfully\n");
+                }
+            } else {
+                log_info("No output from command\n");
+                COMPILE_TIME_LOG_DEBUG("fread() returned 0 bytes\n");
+            }
+        } else {
+            // Unknown command
+            log_info("Unknown command received\n");
+            COMPILE_TIME_LOG_DEBUG("Received: %s", buffer);
+            const char *error_msg = "ERROR: Unknown command\n";
+            write(client_fd, error_msg, strlen(error_msg));
         }
     } else if (valread == 0) {
         // Story 2.5: Normal EOF - client closed connection gracefully
