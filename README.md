@@ -1,87 +1,87 @@
 # C-Concurrent-Fork-Server
 
-**網路系統程式設計 - 期中專案**
-**作者:** James
-**日期:** 2025-11-06
-**專案等級:** Level 2-3
+**Network System Programming - Midterm Project**
+**Author:** James
+**Date:** 2025-11-06
+**Project Level:** Level 2-3
 
 ---
 
-## 📋 專案概述
+## 📋 Project Overview
 
-本專案實作了一個基於 **fork() 並行模型**的穩健 TCP Client-Server 系統，展示了關鍵的系統程式設計概念和網路穩健性機制。
+This project implements a robust TCP Client-Server system based on the **fork() concurrency model**, demonstrating key system programming concepts and network robustness mechanisms.
 
-### 核心特色
+### Core Features
 
-- ✅ **Fork-based 並行處理** - 每個客戶端連線由獨立子進程處理
-- ✅ **動態函式庫** - libutils.so 共享日誌系統
-- ✅ **雙層日誌控制** - 編譯時期（NDEBUG）+ 執行時期（-d 旗標）
-- ✅ **完整穩健性機制** - 防禦殭屍進程、Slowloris、SIGPIPE、資源耗盡
-- ✅ **Good vs. Bad 對比** - 清楚展示穩健性機制的價值
+- ✅ **Fork-based Concurrency** - Each client connection is handled by an independent child process
+- ✅ **Dynamic Library** - `libutils.so` shared logging system
+- ✅ **Dual-layer Log Control** - Compile-time (NDEBUG) + Runtime (-d flag)
+- ✅ **Comprehensive Robustness** - Defense against Zombie Processes, Slowloris, SIGPIPE, Resource Exhaustion
+- ✅ **Good vs. Bad Comparison** - Clearly demonstrates the value of robustness mechanisms
 
 ---
 
-## 🏗️ 系統架構
+## 🏗️ System Architecture
 
-### 檔案結構
+### File Structure
 
 ```
 C-Concurrent-Fork-Server/
 ├── src/
-│   ├── libutils/       # 共享函式庫（日誌系統）
+│   ├── libutils/       # Shared Library (Logging System)
 │   │   ├── log.h
 │   │   └── log.c
-│   ├── server/         # 伺服器實作
-│   │   ├── server.c    # 主程式（socket, bind, listen, accept, fork）
-│   │   ├── child.c     # 子進程處理邏輯
+│   ├── server/         # Server Implementation
+│   │   ├── server.c    # Main Program (socket, bind, listen, accept, fork)
+│   │   ├── child.c     # Child Process Logic
 │   │   └── signal.c    # SIGCHLD handler
-│   └── client/         # 客戶端實作
+│   └── client/         # Client Implementation
 │       └── client.c
-├── attacks/            # 攻擊腳本
+├── attacks/            # Attack Scripts
 │   ├── attack_1_zombie.sh
 │   ├── attack_2_slowloris.sh
 │   └── attack_3_sigpipe.sh
-├── tests/              # 測試套件
+├── tests/              # Test Suite
 │   ├── test_server_good.sh
 │   ├── test_sigchld.sh
 │   ├── test_fork_failure.sh
 │   ├── test_sigpipe.sh
 │   ├── test_timeout.sh
 │   └── test_io_errors.sh
-├── docs/               # 文件
+├── docs/               # Documentation
 │   ├── prd.md
 │   ├── architecture.md
 │   └── epics.md
-├── CMakeLists.txt      # 建置系統
-├── SOP.md              # 標準操作程序
-└── README.md           # 本文件
+├── CMakeLists.txt      # Build System
+├── SOP.md              # Standard Operating Procedure
+└── README.md           # This File
 ```
 
-### 系統元件
+### System Components
 
 ![System Architecture](docs/C-architecture.png)
 
 ---
 
-## 🛡️ 穩健性機制
+## 🛡️ Robustness Mechanisms
 
-### 實作的五大防護機制
+### Five Implemented Protection Mechanisms
 
-| # | 機制 | 實作位置 | 防禦的威脅 | Epic Story |
-|---|------|---------|-----------|-----------|
-| 1 | **SIGCHLD 處理** | signal.c:7-12 | 殭屍進程累積 | Story 2.1 |
-| 2 | **fork() 失敗處理** | server.c:95-100 | CPU 熱迴圈、資源耗盡 | Story 2.2 |
-| 3 | **SIGPIPE 忽略** | child.c:16 | 寫入崩潰 | Story 2.3 |
-| 4 | **SO_RCVTIMEO 超時** | child.c:20-23 | Slowloris DoS | Story 2.4 |
-| 5 | **I/O 錯誤檢查** | child.c:46-62 | 各種網路異常 | Story 2.5 |
+| # | Mechanism | Implementation Location | Threat Defended | Epic Story |
+|---|-----------|------------------------|-----------------|------------|
+| 1 | **SIGCHLD Handling** | signal.c:7-12 | Zombie Process Accumulation | Story 2.1 |
+| 2 | **fork() Failure Handling** | server.c:95-100 | CPU Hot Loop, Resource Exhaustion | Story 2.2 |
+| 3 | **SIGPIPE Ignoring** | child.c:16 | Write Crash | Story 2.3 |
+| 4 | **SO_RCVTIMEO Timeout** | child.c:20-23 | Slowloris DoS | Story 2.4 |
+| 5 | **I/O Error Checking** | child.c:46-62 | Various Network Anomalies | Story 2.5 |
 
-### 機制詳解
+### Mechanism Details
 
-#### 1. SIGCHLD 處理 (Story 2.1)
+#### 1. SIGCHLD Handling (Story 2.1)
 
-**問題:** 子進程退出後若 Parent 未呼叫 wait()，會變成殭屍進程（defunct）
+**Problem:** If the Parent does not call `wait()` after a child process exits, it becomes a zombie process (defunct).
 
-**解決方案:**
+**Solution:**
 ```c
 // signal.c
 static void sigchld_handler(int s) {
@@ -91,65 +91,65 @@ static void sigchld_handler(int s) {
 }
 ```
 
-**效果:**
-- server_bad: 每個連線後產生 1 個殭屍進程
-- server_good: 自動回收，0 個殭屍進程
+**Effect:**
+- `server_bad`: Generates 1 zombie process per connection
+- `server_good`: Automatically reclaims, 0 zombie processes
 
-#### 2. fork() 失敗處理 (Story 2.2)
+#### 2. fork() Failure Handling (Story 2.2)
 
-**問題:** 系統資源不足時 fork() 回傳 -1，若未處理會陷入 100% CPU 熱迴圈
+**Problem:** `fork()` returns -1 when system resources are insufficient. If not handled, it leads to a 100% CPU hot loop.
 
-**解決方案:**
+**Solution:**
 ```c
 // server.c
 if (pid == -1) {
     log_info("fork() failed: %s\n", strerror(errno));
     write(client_fd, "SERVER_BUSY\n", 12);
     close(client_fd);
-    sleep(1);  // 避免熱迴圈
+    sleep(1);  // Avoid hot loop
 }
 ```
 
-**效果:**
-- 禮貌通知客戶端
-- sleep(1) 避免 CPU 耗盡
-- 伺服器保持穩定
+**Effect:**
+- Politely notifies the client
+- `sleep(1)` prevents CPU exhaustion
+- Server remains stable
 
-#### 3. SIGPIPE 忽略 (Story 2.3)
+#### 3. SIGPIPE Ignoring (Story 2.3)
 
-**問題:** write() 到已關閉的 socket 會收到 SIGPIPE，預設行為是終止程式
+**Problem:** Writing to a closed socket triggers SIGPIPE, which terminates the program by default.
 
-**解決方案:**
+**Solution:**
 ```c
 // child.c
 signal(SIGPIPE, SIG_IGN);
 ```
 
-**效果:**
-- write() 失敗時回傳 -1 + EPIPE，而非崩潰
-- 子進程可優雅處理錯誤
+**Effect:**
+- `write()` returns -1 + EPIPE instead of crashing
+- Child process can handle errors gracefully
 
-#### 4. SO_RCVTIMEO 超時 (Story 2.4)
+#### 4. SO_RCVTIMEO Timeout (Story 2.4)
 
-**問題:** Slowloris 攻擊 - 建立連線但不發送數據，佔滿連線池
+**Problem:** Slowloris Attack - Establishes connections but sends no data, occupying the connection pool.
 
-**解決方案:**
+**Solution:**
 ```c
 // child.c
 struct timeval tv = {.tv_sec = 5, .tv_usec = 0};
 setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
 ```
 
-**效果:**
-- 閒置連線 5 秒後自動逾時
-- read() 回傳 -1 + EAGAIN/ETIMEDOUT
-- 子進程自動清理
+**Effect:**
+- Idle connections time out automatically after 5 seconds
+- `read()` returns -1 + EAGAIN/ETIMEDOUT
+- Child process cleans up automatically
 
-#### 5. I/O 錯誤檢查 (Story 2.5)
+#### 5. I/O Error Checking (Story 2.5)
 
-**問題:** 網路異常（EOF、ECONNRESET、ETIMEDOUT）需要優雅處理
+**Problem:** Network anomalies (EOF, ECONNRESET, ETIMEDOUT) need graceful handling.
 
-**解決方案:**
+**Solution:**
 ```c
 // child.c
 if (valread == 0) {
@@ -163,38 +163,38 @@ if (valread == 0) {
 }
 ```
 
-**效果:**
-- 所有錯誤都被捕獲並記錄
-- 無異常退出
+**Effect:**
+- All errors are caught and logged
+- No abnormal exits
 
 ---
 
-## 🚀 快速開始
+## 🚀 Quick Start
 
-### 1. 編譯專案
+### 1. Compile Project
 
 ```bash
 cmake -B build
 cmake --build build
 ```
 
-### 2. 執行基本測試
+### 2. Run Basic Tests
 
 ```bash
-# 終端機 1: 啟動伺服器
+# Terminal 1: Start Server
 ./build/server_good 8080
 
-# 終端機 2: 執行客戶端
+# Terminal 2: Run Client
 ./build/client 127.0.0.1 8080
 ```
 
-### 3. 執行完整測試套件
+### 3. Run Full Test Suite
 
 ```bash
 ./tests/test_server_good.sh
 ```
 
-**預期輸出:**
+**Expected Output:**
 ```
 ========================================
 Story 2.6: server_good Comprehensive Test
@@ -212,120 +212,120 @@ Story 2.6: server_good Comprehensive Test
 
 ---
 
-## 🎯 Good vs. Bad Server 對比
+## 🎯 Good vs. Bad Server Comparison
 
-### server_bad (脆弱版)
+### server_bad (Vulnerable Version)
 
-編譯旗標: `-DNO_ROBUST`
+Compile Flag: `-DNO_ROBUST`
 
-| 攻擊場景 | 結果 |
-|---------|------|
-| 20 個快速連線/斷線 | ❌ 產生 20 個殭屍進程 |
-| 15 個閒置連線 | ❌ 連線池耗盡，無法接受新連線 |
-| 快速斷線攻擊 | ❌ 子進程可能崩潰（SIGPIPE） |
-| fork() 失敗 | ❌ CPU 100% 熱迴圈 |
+| Attack Scenario | Result |
+|-----------------|--------|
+| 20 Rapid Connect/Disconnect | ❌ Generates 20 Zombie Processes |
+| 15 Idle Connections | ❌ Connection pool exhausted, cannot accept new connections |
+| Rapid Disconnect Attack | ❌ Child process may crash (SIGPIPE) |
+| fork() Failure | ❌ CPU 100% Hot Loop |
 
-### server_good (穩健版)
+### server_good (Robust Version)
 
-編譯旗標: 無（啟用全部防護）
+Compile Flag: None (All protections enabled)
 
-| 攻擊場景 | 結果 |
-|---------|------|
-| 20 個快速連線/斷線 | ✅ 0 個殭屍進程（SIGCHLD 自動回收） |
-| 15 個閒置連線 | ✅ 5 秒後自動清理（SO_RCVTIMEO） |
-| 快速斷線攻擊 | ✅ 優雅處理（SIGPIPE ignored） |
-| fork() 失敗 | ✅ 通知客戶端 + sleep 避免熱迴圈 |
+| Attack Scenario | Result |
+|-----------------|--------|
+| 20 Rapid Connect/Disconnect | ✅ 0 Zombie Processes (SIGCHLD Auto Reclaim) |
+| 15 Idle Connections | ✅ Auto cleanup after 5s (SO_RCVTIMEO) |
+| Rapid Disconnect Attack | ✅ Graceful handling (SIGPIPE ignored) |
+| fork() Failure | ✅ Notify client + sleep to avoid hot loop |
 
 ---
 
-## 📊 測試與驗證
+## 📊 Testing & Verification
 
-### 測試套件
+### Test Suite
 
-| 測試腳本 | 目的 | 位置 |
-|---------|------|------|
-| `test_server_good.sh` | 綜合測試（所有機制） | tests/ |
-| `test_sigchld.sh` | SIGCHLD 處理驗證 | tests/ |
-| `test_fork_failure.sh` | fork() 失敗處理 | tests/ |
-| `test_sigpipe.sh` | SIGPIPE 防護驗證 | tests/ |
-| `test_timeout.sh` | Slowloris 防禦驗證 | tests/ |
-| `test_io_errors.sh` | I/O 錯誤處理驗證 | tests/ |
+| Test Script | Purpose | Location |
+|-------------|---------|----------|
+| `test_server_good.sh` | Comprehensive Test (All Mechanisms) | tests/ |
+| `test_sigchld.sh` | SIGCHLD Handling Verification | tests/ |
+| `test_fork_failure.sh` | fork() Failure Handling | tests/ |
+| `test_sigpipe.sh` | SIGPIPE Protection Verification | tests/ |
+| `test_timeout.sh` | Slowloris Defense Verification | tests/ |
+| `test_io_errors.sh` | I/O Error Handling Verification | tests/ |
 
-### 攻擊腳本
+### Attack Scripts
 
-| 腳本 | 攻擊類型 | 用途 |
-|------|---------|------|
-| `attack_1_zombie.sh` | 殭屍進程攻擊 | 展示 SIGCHLD 必要性 |
-| `attack_2_slowloris.sh` | Slowloris DoS | 展示 SO_RCVTIMEO 必要性 |
-| `attack_3_sigpipe.sh` | SIGPIPE 崩潰攻擊 | 展示 SIG_IGN 必要性 |
+| Script | Attack Type | Usage |
+|--------|-------------|-------|
+| `attack_1_zombie.sh` | Zombie Process Attack | Demonstrates SIGCHLD Necessity |
+| `attack_2_slowloris.sh` | Slowloris DoS | Demonstrates SO_RCVTIMEO Necessity |
+| `attack_3_sigpipe.sh` | SIGPIPE Crash Attack | Demonstrates SIG_IGN Necessity |
 
-### 執行所有測試
+### Run All Tests
 
 ```bash
-# 1. 測試 server_good
+# 1. Test server_good
 ./tests/test_server_good.sh
 
-# 2. 執行攻擊腳本對比
+# 2. Run Attack Scripts Comparison
 ./build/server_bad 8080 &
 ./attacks/attack_1_zombie.sh 8080
-ps aux | grep defunct  # 應該看到殭屍進程
+ps aux | grep defunct  # Should see zombie processes
 
 killall server_bad
 
 ./build/server_good 8080 &
 ./attacks/attack_1_zombie.sh 8080
-ps aux | grep defunct  # 應該沒有殭屍進程
+ps aux | grep defunct  # Should see NO zombie processes
 ```
 
 ---
 
-## 📦 交付成果
+## 📦 Deliverables
 
-### 程式碼
+### Code
 
-- ✅ `server_good` - 生產級穩健伺服器
-- ✅ `server_bad` - 對比展示用脆弱版本
-- ✅ `client` - 客戶端程式
-- ✅ `libutils.so` - 共享日誌函式庫
+- ✅ `server_good` - Production-grade Robust Server
+- ✅ `server_bad` - Vulnerable Version for Comparison
+- ✅ `client` - Client Program
+- ✅ `libutils.so` - Shared Logging Library
 
-### 文件
+### Documentation
 
-- ✅ [SOP.md](SOP.md) - 標準操作程序
-- ✅ [PRD](docs/prd.md) - 產品需求文件
-- ✅ [Architecture](docs/architecture.md) - 架構設計文件
-- ✅ [Epics](docs/epics.md) - Epic 分解文件
-- ✅ README.md - 本文件（最終報告）
+- ✅ [SOP.md](SOP.md) - Standard Operating Procedure
+- ✅ [PRD](docs/prd.md) - Product Requirement Document
+- ✅ [Architecture](docs/architecture.md) - Architecture Design Document
+- ✅ [Epics](docs/epics.md) - Epic Breakdown Document
+- ✅ README.md - This File (Final Report)
 
-### 測試與攻擊腳本
+### Test & Attack Scripts
 
-- ✅ 6 個測試腳本（驗證所有機制）
-- ✅ 3 個攻擊腳本（展示對比）
+- ✅ 6 Test Scripts (Verify All Mechanisms)
+- ✅ 3 Attack Scripts (Demonstrate Comparison)
 
 ---
 
-## 📖 技術規格
+## 📖 Technical Specifications
 
-### 開發環境
+### Development Environment
 
-- **語言:** C11
-- **建置系統:** CMake 3.10+
-- **編譯器:** GCC 11.4.0
-- **平台:** Linux (WSL2)
+- **Language:** C11
+- **Build System:** CMake 3.10+
+- **Compiler:** GCC 11.4.0
+- **Platform:** Linux (WSL2)
 
-### 依賴
+### Dependencies
 
-- 標準 C 函式庫
+- Standard C Library
 - POSIX API (sys/socket.h, signal.h, unistd.h)
-- netcat (測試用)
+- netcat (for testing)
 
-### 編譯選項
+### Compile Options
 
 ```cmake
-# server_good (生產版)
+# server_good (Production)
 add_executable(server_good server.c child.c signal.c)
 target_link_libraries(server_good utils)
 
-# server_bad (展示版)
+# server_bad (Demo)
 add_executable(server_bad server.c child.c signal.c)
 target_compile_definitions(server_bad PRIVATE NO_ROBUST)
 target_link_libraries(server_bad utils)
@@ -333,33 +333,33 @@ target_link_libraries(server_bad utils)
 
 ---
 
-## 🎓 學習重點
+## 🎓 Key Learnings
 
-本專案展示了以下系統程式設計核心概念：
+This project demonstrates the following core System Programming concepts:
 
-1. **進程管理**
-   - fork() 並行模型
-   - 殭屍進程回收（waitpid）
-   - 信號處理（SIGCHLD, SIGPIPE）
+1. **Process Management**
+   - fork() concurrency model
+   - Zombie process reclamation (waitpid)
+   - Signal handling (SIGCHLD, SIGPIPE)
 
-2. **網路程式設計**
-   - TCP socket 通訊
-   - Client-Server 架構
-   - 協定設計（GET_SYS_INFO）
+2. **Network Programming**
+   - TCP socket communication
+   - Client-Server architecture
+   - Protocol design (GET_SYS_INFO)
 
-3. **穩健性工程**
-   - 錯誤處理（errno）
-   - 資源管理（timeout, cleanup）
-   - 防禦式程式設計
+3. **Robustness Engineering**
+   - Error handling (errno)
+   - Resource management (timeout, cleanup)
+   - Defensive programming
 
-4. **建置系統**
-   - CMake 建置配置
-   - 動態函式庫（.so）
-   - 條件編譯（#ifndef）
+4. **Build System**
+   - CMake build configuration
+   - Dynamic libraries (.so)
+   - Conditional compilation (#ifndef)
 
 ---
 
-## 📚 參考資料
+## 📚 References
 
 - [Beej's Guide to Network Programming](https://beej.us/guide/bgnet/)
 - [The Linux Programming Interface](https://man7.org/tlpi/)
@@ -367,7 +367,7 @@ target_link_libraries(server_bad utils)
 
 ---
 
-## 👨‍💻 作者
+## 👨‍💻 Author
 
 **James**
 Network System Programming - Midterm Project
@@ -375,15 +375,15 @@ Date: 2025-11-06
 
 ---
 
-## 📄 授權
+## 📄 License
 
-本專案為教育用途，遵循課程要求開發。
+This project is for educational purposes, developed according to course requirements.
 
 ---
 
-**專案完成度:** 100% ✅
+**Project Completion:** 100% ✅
 
-- ✅ Epic 1: 專案基礎與 Bad Server (8/8 stories)
-- ✅ Epic 2: Good Server 與最終交付 (8/8 stories)
-- ✅ 所有測試通過
-- ✅ 完整文件交付
+- ✅ Epic 1: Project Foundation & Bad Server (8/8 stories)
+- ✅ Epic 2: Good Server & Final Delivery (8/8 stories)
+- ✅ All Tests Passed
+- ✅ Complete Documentation Delivered
